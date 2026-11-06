@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Ремонт",
+    "slug": "remont",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "remont",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": ["expo-router"],
+    "android": {
+      "package": "kz.remont.app"
+    },
+    "ios": {
+      "bundleIdentifier": "kz.remont.app",
+      "supportsTablet": true
+    }
+  }
+}

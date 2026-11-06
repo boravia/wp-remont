@@ -1,0 +1,121 @@
+// Схема базы для приложения ремонта техники.
+// Деньги хранятся в тенге целыми числами (Int), без дробей.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  NEW          // Новая заявка
+  SCHEDULED    // Согласовано, время визита назначено
+  DIAGNOSIS    // Диагностика
+  WAITING_PART // Ждёт запчасть
+  REPAIRING    // В ремонте
+  DONE         // Готово
+  CLOSED       // Закрыт и оплачен
+  REFUSED      // Отказ
+}
+
+enum PaymentMethod {
+  CASH
+  KASPI
+  TRANSFER
+  UNPAID
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  // Номер в едином формате +77XXXXXXXXX. Может отсутствовать, если клиент
+  // скрыл его за WhatsApp-юзернеймом — тогда идентифицируем по waId (BSUID).
+  phone     String?  @unique
+  waId      String?  @unique // BSUID на будущее, когда номер скрыт
+  name      String?
+  address   String?
+  district  String?
+  source    String?  // 2ГИС, Instagram, OLX, знакомые, повторный
+  notes     String?
+  tags      String[] @default([]) // проблемный, VIP и т.п.
+  consentAt DateTime? // когда клиент дал согласие на хранение данных
+  createdAt DateTime @default(now())
+
+  appliances Appliance[]
+  orders     Order[]
+
+  @@map("clients")
+}
+
+model Appliance {
+  id       String  @id @default(cuid())
+  clientId String
+  type     String  // стиралка, холодильник, кондиционер...
+  brand    String?
+  model    String?
+  serial   String?
+  year     Int?
+
+  client Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@map("appliances")
+}
+
+model Order {
+  id            String        @id @default(cuid())
+  number        Int           @unique @default(autoincrement()) // человекочитаемый номер заказа
+  clientId      String
+  applianceId   String?
+  status        OrderStatus   @default(NEW)
+  complaint     String?       // жалоба со слов клиента
+  diagnosis     String?       // диагноз мастера
+  visitAt       DateTime?     // дата и время визита
+  total         Int           @default(0) // итог, тенге
+  prepaid       Int           @default(0) // предоплата, тенге
+  paid          Int           @default(0) // оплачено, тенге
+  paymentMethod PaymentMethod @default(UNPAID)
+  refusalReason String?       // причина отказа
+  warrantyUntil DateTime?     // гарантия до
+  source        String?       // источник заявки
+  createdAt     DateTime      @default(now())
+  closedAt      DateTime?
+
+  client    Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appliance Appliance?  @relation(fields: [applianceId], references: [id], onDelete: SetNull)
+  items     OrderItem[]
+  events    OrderEvent[]
+
+  @@index([status])
+  @@index([clientId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  kind      String  // work (работа) или part (запчасть)
+  name      String
+  qty       Int     @default(1)
+  costPrice Int     @default(0) // закупочная цена, тенге
+  salePrice Int     @default(0) // цена для клиента, тенге
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_items")
+}
+
+model OrderEvent {
+  id         String      @id @default(cuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  comment    String?
+  at         DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_events")
+}
