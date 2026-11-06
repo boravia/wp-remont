@@ -19,10 +19,9 @@ export class ClientsService {
     const phone = normalizePhone(params.phone);
     const waId = params.waId ?? null;
 
-    let client = null;
-    if (phone) {
-      client = await this.prisma.client.findUnique({ where: { phone } });
-    }
+    let client = phone
+      ? await this.prisma.client.findUnique({ where: { phone } })
+      : null;
     if (!client && waId) {
       client = await this.prisma.client.findUnique({ where: { waId } });
     }
